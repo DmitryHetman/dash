@@ -19,10 +19,10 @@ DetectGentooRelease() #@ Detect Release
 }
 
 DetectGentooProfile() #@ Detect profile
-                      #@ For Gentoo-based distros
-{
+{                     #@ For Gentoo-based distros
+
       local Profile
-      Profile=$(file '/etc/portage/make.profile'); #seems not works
+      Profile=$(file '/etc/portage/make.profile');
       Profile=${Profile#*s/}
 #     Remove 13.0
       Profile=${Profile%13.0}
@@ -32,10 +32,8 @@ DetectGentooProfile() #@ Detect profile
       GentooProfile="${Profile}"
 }
 
-DetectGCC() #@ Detect GCC version # works in dash
-            #@ Only 'gcc --version' shows detailed version and patches.
-            #@ For example (Gentoo 6.1.0 p1.0, pie-0.6.5)
-{
+DetectGCC() #@ Detect GCC version
+{           #@ For example (Gentoo 6.1.0 p1.0, pie-0.6.5)
   GCCVersion=$(gcc --version)
   GCCVersion=${GCCVersion#*(}
   GCCVersion=${GCCVersion%%)*}
@@ -44,7 +42,7 @@ DetectGCC() #@ Detect GCC version # works in dash
 DetectClib() #@ Detect standard C library version
 {
       local MACHTYPE=$(gcc -dumpmachine)
-      case $MACHTYPE in #not works in dash
+      case $MACHTYPE in
 
        *-gnu) #If glibc
               Clib=glibc;
@@ -111,11 +109,12 @@ GPU=$(awk '{print $2}' /proc/fb)
          5[5-6]75[C-R]|5350H)               GPU='Intel Iris Pro Graphics 6200' ;; #5th Broadwell
                                                                                   #6th Skylake
                                                                                   #7th Kabylake
+										  #8th Cannonlake
     esac
 	fi
 }
 
-DetectSoundCard() #wokrs in dash
+DetectSoundCard()
 {
   local Card
   local CardNumber
@@ -129,13 +128,13 @@ DetectSoundCard() #wokrs in dash
 
 }
 
-DetectRootUsage() #not works
+DetectRootUsage()
 {
   local Root
   RootUsage=$(df -hT -xdevtmpfs -xtmpfs|sed -n 2p|awk '{print $4 "/"  $3 " " $2}')
 }
 
-DetectTerminal() #works in dash
+DetectTerminal()
 {               #consoletype can help, but it only for root.
 if [ ${TERM} = screen -a /tmp/tmux-$UID ]
   then
@@ -145,7 +144,7 @@ if [ ${TERM} = screen -a /tmp/tmux-$UID ]
 fi
 }
 
-DetectGraphicEnvironment() #works in dash
+DetectGraphicEnvironment()
 {
 if [ -S  $XDG_RUNTIME_DIR/wayland-[0-9] ] # if Wayland running
    then
@@ -164,16 +163,16 @@ fi
 
 [ $# -ne 0 ] && grep '^#:' $0 && exit 0
 
-DetectGentooRelease     # not works
-DetectGentooProfile     # not works
+DetectGentooRelease
+DetectGentooProfile
 DetectGCC
 DetectClib
 #DetectFont
-DetectIntelGPU           # works in dash
-DetectSoundCard         # not works in dash
-DetectRootUsage         # not works in dash
-DetectGraphicEnvironment # works in dash
-DetectTerminal           # works in dash
+DetectIntelGPU
+DetectSoundCard
+DetectRootUsage
+DetectGraphicEnvironment
+DetectTerminal
 
 printf "Release:             %s\n" "${GentooRelease}"
 printf "Profile:             %s\n" "${GentooProfile}"
@@ -186,7 +185,7 @@ printf "Root Usage:          %s\n" "${RootUsage}"
 printf "Terminal:            %s\n" "${Terminal}"
 printf "Graphic Environment: %s\n" "${GraphicEnvironment}"
 #Edit:
-#GPU,Terminal,Graphic Environment
+#GPU
 #27800
 #29800
 #/sys/devices/virtual/thermal/thermal_zone1/temp # CPU : 27800 ? static
