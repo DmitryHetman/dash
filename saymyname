@@ -136,7 +136,7 @@ DetectRootUsage()
 
 DetectTerminal()
 {               #consoletype can help, but it only for root.
-if [ ${TERM} = screen -a /tmp/tmux-$UID ]
+if [ ${TMUX_PANE} ]
   then
     Terminal=tmux
   else
