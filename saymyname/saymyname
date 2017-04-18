@@ -1,0 +1,192 @@
+#!/bin/dash
+#: Title          : saymyname
+#: Date           : 2016/07/31
+#: Author         : DmitryHetman
+#: Version        : 1.0
+#: Description    : print info about OS and hardware
+#: Options        : None
+#: Synopsis       : saymyname
+DetectGentooRelease() #@ Detect Release
+		      #@ For Gentoo-based distros
+{
+    . /etc/portage/make.conf
+   case $ACCEPT_KEYWORDS in
+        [a-z]*) GentooRelease=stable       ;;
+        ~*)     GentooRelease=testing      ;;
+        '**')   GentooRelease=experimental ;; #experimental usually includes git-versions of packages
+        *)      GentooRelease=unknown      ;;
+   esac
+}
+
+DetectGentooProfile() #@ Detect profile
+{                     #@ For Gentoo-based distros
+
+      local Profile
+      Profile=$(file '/etc/portage/make.profile');
+      Profile=${Profile#*s/}
+#     Remove 13.0
+      Profile=${Profile%13.0}
+#           $default/hardened $minorprofile
+      Profile="${Profile%%/*} ${Profile##*/}"
+
+      GentooProfile="${Profile}"
+}
+
+DetectGCC() #@ Detect GCC version
+{           #@ For example (Gentoo 6.1.0 p1.0, pie-0.6.5)
+  GCCVersion=$(gcc --version)
+  GCCVersion=${GCCVersion#*(}
+  GCCVersion=${GCCVersion%%)*}
+}
+
+DetectClib() #@ Detect standard C library version
+{
+      local MACHTYPE=$(gcc -dumpmachine)
+      case $MACHTYPE in
+
+       *-gnu) #If glibc
+              Clib=glibc;
+        local ClibVer
+              ClibVer=$(/lib/libc-*)
+              ClibVer=${ClibVer%%)*}
+              ClibVer=${ClibVer#*(}
+                                          ;;
+       *-*)   #If uclibc/musl/dietlibc
+              Clib=${MACHTYPE##*'-'}
+       if [ $Clib = uclibc ]
+       then
+              local uclibcVer
+              uclibcVer=$(file /lib/libc.*) # only for uclibc.
+              uclibcVer=${uclibcVer#*'-'}
+              uclibcVer=${uclibcVer%.*}
+              ClibVer=${uclibcVer}
+       fi
+                                          ;;
+  esac
+
+ Clib="${Clib} ${ClibVer}";
+}
+
+
+#DetectFont()
+#{
+#  if [ $TERM != linux ]
+#     then
+#     Font=$(fc-match | awk '{print $2 " " $3}')
+#     Font=${Font%*'"'}
+#     Font=${Font#'"'*}
+#     local SubFont=$(fc-match | awk '{print $4}')
+#     SubFont=${SubFont%'"'}
+#     SubFont=${SubFont#'"'}
+#     Font+=" $SubFont"
+#  fi
+#}
+
+
+DetectIntelGPU() #@ Detect Intel GPU  #works in dash
+{                #@ Run it only on Intel Processors
+                 #@ if GPU unknown
+GPU=$(awk '{print $2}' /proc/fb)
+
+  case $GPU in
+       *intel*) GPU=intel ;;
+  esac
+
+	if [ $GPU = intel ]
+	then
+	  #Detect CPU
+	  local CPU=$(uname -p | awk '{print $3}')
+	  CPU=${CPU#*'-'}; #Detect CPU number
+
+          #Detect Intel GPU
+     case $CPU in
+     [3-6][3-9][0-5]|[3-6][3-9][0-5][K-Y])  GPU='Intel HD Graphics'            ;; #1st
+         2[1-5][0-3][0-2]*|2390T|2600S)     GPU='Intel HD Graphics 2000'       ;; #2nd
+         2[1-5][1-7][0-8]*|2105|2500K)      GPU='Intel HD Graphics 3000'       ;; #2nd
+         32[1-5]0*|3[4-5][5-7]0*|33[3-4]0*) GPU='Intel HD Graphics 2500'       ;; #3rd
+         3570K|3427U)                       GPU='Intel HD Graphics 4000'       ;; #3rd
+         4[3-7][0-9][0-5]*)                 GPU='Intel HD Graphics 4600'       ;; #4th Haswell
+         5[5-6]75[C-R]|5350H)               GPU='Intel Iris Pro Graphics 6200' ;; #5th Broadwell
+                                                                                  #6th Skylake
+                                                                                  #7th Kabylake
+										  #8th Cannonlake
+    esac
+	fi
+}
+
+DetectSoundCard()
+{
+  local Card
+  local CardNumber
+  local Codec
+   Card=$(grep -m1 PCH /proc/asound/cards)
+   Card=${Card#*' '} #remove space
+   CardNumber=${Card%%' '*} #remains digit
+   Card=${Card##*' - '}
+   Codec=$(grep -m1 Codec /proc/asound/card${CardNumber}/codec#*)
+   SoundCard="${Card}:${Codec#*Codec:}"
+
+}
+
+DetectRootUsage()
+{
+df -T 2>/dev/zero 1>/dev/zero && RootUsage=$(df -hT|sed -n 2p|awk '{print $4 "/"  $3 " " $2}') || RootUsage=$(df -h|sed -n 2p|awk '{print $4 "/"  $3}')
+}
+
+DetectTerminal()
+{               #consoletype can help, but it only for root.
+if [ ${TMUX_PANE} ]
+  then
+    Terminal=tmux
+  else
+    Terminal=$TERM
+fi
+}
+
+DetectGraphicEnvironment()
+{
+if [ -S  $XDG_RUNTIME_DIR/wayland-[0-9] ] # if Wayland running
+   then
+       GraphicEnvironment=Wayland
+elif [ -S /tmp/.X11-unix/X0 ] #if xorg; should be after wayland check in case of xwayland usage
+   then
+      GraphicEnvironment=Xorg
+else
+      GraphicEnvironment=Framebuffer #if no sockets from xorg or wayland
+fi
+if [ $TERM = linux ]
+  then
+     GraphicEnvironment=Framebuffer #If $TERM = linux then it is framebuffer even if xorg and wayland running
+fi
+}
+
+[ $# -ne 0 ] && grep '^#:' $0 && exit 0
+
+DetectGentooRelease
+DetectGentooProfile
+DetectGCC
+DetectClib
+#DetectFont
+DetectIntelGPU
+DetectSoundCard
+DetectRootUsage
+DetectGraphicEnvironment
+DetectTerminal
+
+printf "Release:             %s\n" "${GentooRelease}"
+printf "Profile:             %s\n" "${GentooProfile}"
+printf "GCC:                 %s\n" "${GCCVersion}"
+printf "Clib:                %s\n" "${Clib}"
+printf "Font:                %s\n" "${Font}"
+printf "GPU:                 %s\n" "${GPU}"
+printf "Sound Card:          %s\n" "${SoundCard}"
+printf "Root Usage:          %s\n" "${RootUsage}"
+printf "Terminal:            %s\n" "${Terminal}"
+printf "Graphic Environment: %s\n" "${GraphicEnvironment}"
+#Edit:
+#GPU
+#27800
+#29800
+#/sys/devices/virtual/thermal/thermal_zone1/temp # CPU : 27800 ? static
+#/sys/devices/virtual/thermal/thermal_zone0/temp # Chipset: 29800 ? static
+#/sys/devices/virtual/thermal/thermal_zone2/temp # ???????: 31000 ? chipset?
