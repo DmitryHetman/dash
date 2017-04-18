@@ -1,5 +1,0 @@
-#!/bin/dash
-STRING=$(curl -s https://www.merriam-webster.com/dictionary/${1}|grep -m1 'og:description" content="')
-STRING="${STRING%See*}"
-STRING="${STRING##*\"}"
-echo $STRING

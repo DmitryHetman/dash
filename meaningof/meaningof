@@ -1,0 +1,9 @@
+#!/bin/dash
+STRING=$( curl -s https://www.merriam-webster.com/dictionary/${1}|grep -m1 'og:description" content="')
+STRING="${STRING%See*}"
+STRING="${STRING##*\"}"
+echo $STRING
+#curl -s https://www.merriam-webster.com/dictionary/${1} |xmllint --html --xpath 'string(/html/head/meta[@property="og:description"]/@content)' - 2>/dev/null
+#printf '\n'
+#normal regex
+#curl -s https://www.merriam-webster.com/dictionary/${1}|egrep -m1 -Po  '(?=og:description" content=")\w+'
